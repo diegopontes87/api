@@ -2,19 +2,18 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/diegopontes87/api/internal/dto"
 	"github.com/diegopontes87/api/internal/entity"
 	"github.com/diegopontes87/api/internal/infra/database"
-	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
 )
 
 type UserHandler struct {
-	UserDB       database.UserDBInterface
-	Jwt          *jwtauth.JWTAuth
-	JwtExpiresIn int
+	UserDB database.UserDBInterface
 }
 
 func NewUserHandler(db database.UserDBInterface) *UserHandler {
@@ -42,17 +41,38 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (h *UserHandler) GetUsert(w http.ResponseWriter, r *http.Request) {
-	email := chi.URLParam(r, "email")
-	if email == "" {
+func (h *UserHandler) GetJWT(w http.ResponseWriter, r *http.Request) {
+	var userJWT dto.GetJWTInput
+	jwt := r.Context().Value("jwt").(*jwtauth.JWTAuth)
+	jwtExpiresIn := r.Context().Value("JwtExpiresIn").(int)
+
+	err := json.NewDecoder(r.Body).Decode(&userJWT)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	product, err := h.UserDB.FindByEmail(email)
+	user, err := h.UserDB.FindByEmail(userJWT.Email)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	if !user.ValidatePassword(userJWT.Password) {
+		fmt.Printf("Password is not valid: %v", userJWT.Password)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	_, tokenString, _ := jwt.Encode(map[string]interface{}{
+		"sub": user.ID.String(),
+		"exp": time.Now().Add(time.Second * time.Duration(jwtExpiresIn)).Unix(),
+	})
+
+	accessToken := struct {
+		AccessToken string `json:"access_token"`
+	}{
+		AccessToken: tokenString,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(product)
+	json.NewEncoder(w).Encode(accessToken)
 }

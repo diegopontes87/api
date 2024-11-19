@@ -7,3 +7,12 @@ Content-type: aplication/json
     "email": "diego@gmail.com",
     "password": "123456"
 }
+
+###
+POST http://localhost:8000/users/generate_token
+Content-type: aplication/json
+
+{
+    "email": "diego@gmail.com",
+    "password": "123456"
+}
