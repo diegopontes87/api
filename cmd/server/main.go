@@ -4,15 +4,34 @@ import (
 	"net/http"
 
 	"github.com/diegopontes87/api/configs"
+	_ "github.com/diegopontes87/api/docs"
 	"github.com/diegopontes87/api/internal/entity"
 	"github.com/diegopontes87/api/internal/infra/database"
 	"github.com/diegopontes87/api/internal/infra/webserver/handlers"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+// Generate swagger dir - swag init -g cmd/server/main.go
+
+// @title           My Go API
+// @version         1.0
+// @description     Product API with Authentication
+// @termsOfService  http://example.com/terms/
+
+// @contact.name   Diego
+// @contact.email  diego@example.com
+
+// @host      localhost:8000
+// @BasePath  /
+
+// @securityDefinitions.apikey  ApiKeyAuth
+// @in                          header
+// @name                        Authorization
 
 const (
 	dbName     string = "test.db"
@@ -57,6 +76,6 @@ func main() {
 		r.Post("/", userHandler.CreateUser)
 		r.Post("/generate_token", userHandler.GetJWT)
 	})
-
+	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("http://localhost:8000/docs/doc.json")))
 	http.ListenAndServe(":8000", r)
 }
